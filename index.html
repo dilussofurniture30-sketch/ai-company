@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Company</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f5f7;color:#17191d;font-family:Arial,sans-serif}
+.shell{display:grid;grid-template-columns:260px 1fr;min-height:100vh}.side{background:#111;color:#fff;padding:22px}
+.side h2{margin-top:0}.nav{padding:11px 0;border-bottom:1px solid #333}.main{padding:24px;max-width:1100px;width:100%}
+.card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:18px;margin-bottom:14px}
+input,textarea{width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;font:inherit}
+button{padding:11px 16px;border:0;border-radius:10px;background:#111;color:#fff;cursor:pointer;margin-top:9px}
+button:disabled{opacity:.5}.agents{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.agent{border:1px solid #ddd;border-radius:12px;padding:12px}
+pre{white-space:pre-wrap;background:#111;color:#eee;border-radius:12px;padding:15px;max-height:500px;overflow:auto}
+small{color:#666}@media(max-width:800px){.shell{grid-template-columns:1fr}.side{display:none}.agents{grid-template-columns:1fr 1fr}}
+</style></head>
+<body>
+<div class="shell"><aside class="side"><h2>AI Company</h2>
+<div class="nav">👔 Manager</div><div class="nav">🔎 Job Hunter</div><div class="nav">💰 Finance</div>
+<div class="nav">📋 Projects</div><div class="nav">🔍 QA</div>
+<p><small style="color:#aaa">Command Center</small></p></aside>
+<main class="main">
+<div class="card"><h1>AI Company Command Center</h1>
+<p>تحدث مع المدير، أو شغّل Web Research، أو ابحث عن فرص عمل. أي إجراء خارجي حساس يحتاج موافقة بشرية.</p></div>
+
+<div class="card"><h3>👔 Manager Chat</h3>
+<textarea id="chat" rows="4" placeholder="مثال: حلل لنا فرصة عمل وأخبرني هل تستحق التنفيذ..."></textarea>
+<button onclick="chat()">إرسال للمدير</button><pre id="chatout">—</pre></div>
+
+<div class="card"><h3>🔎 Web Research Team</h3>
+<textarea id="research" rows="3">ابحث عن 10 شركات برمجيات في دبي، الاسم والموقع الرسمي والمجال ومصدر موثوق لكل شركة.</textarea>
+<button onclick="research()">تشغيل الفريق</button><pre id="researchout">—</pre></div>
+
+<div class="card"><h3>💼 Job Hunter</h3>
+<textarea id="jobs" rows="3">ابحث عن فرص Web Research للمبتدئين، واجمع عنوان المهمة، المصدر، الرابط، الميزانية إن وجدت، المتطلبات، والمخاطر. لا تقدم لأي وظيفة.</textarea>
+<button onclick="jobs()">البحث عن فرص</button><pre id="jobsout">—</pre></div>
+
+<div class="card"><h3>👥 الفريق</h3><div class="agents">
+<div class="agent">👔 Manager<br><small>Orchestrator</small></div>
+<div class="agent">🔎 Researcher<br><small>Web Search</small></div>
+<div class="agent">💻 Developer<br><small>Code</small></div>
+<div class="agent">🎨 Designer<br><small>Design</small></div>
+<div class="agent">✍️ Writer<br><small>Content</small></div>
+<div class="agent">🔍 Reviewer 1<br><small>QA</small></div>
+<div class="agent">🔍 Reviewer 2<br><small>Final QA</small></div>
+<div class="agent">💰 Finance<br><small>Economics</small></div>
+</div></div>
+</main></div>
+<script>
+async function post(url,data,out){
+ const el=document.getElementById(out);el.textContent="جاري العمل...";
+ try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+ const d=await r.json();if(!r.ok)throw Error(d.detail||"Server error");el.textContent=JSON.stringify(d,null,2)}
+ catch(e){el.textContent="خطأ: "+e.message}
+}
+function chat(){post("/api/chat",{message:document.getElementById("chat").value},"chatout")}
+function research(){post("/api/research",{task:document.getElementById("research").value,max_retries:2},"researchout")}
+function jobs(){post("/api/jobs/search",{task:document.getElementById("jobs").value,max_retries:0},"jobsout")}
+</script>
+</body></html>
