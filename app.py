@@ -1,4 +1,5 @@
 import os
+import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -11,11 +12,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from agents import Agent, Runner, WebSearchTool
-
-
-# =========================
-# CONFIG
-# =========================
 
 load_dotenv()
 
@@ -152,6 +148,7 @@ def new_project(task, budget=0, revenue=0):
 
 
 def make_agent(name, instructions, tools=None):
+
     kwargs = {
         "name": name,
         "instructions": instructions
@@ -167,12 +164,11 @@ def make_agent(name, instructions, tools=None):
 
 
 # =========================
-# WEB SEARCH
+# TOOLS
 # =========================
 
 web = WebSearchTool(
-    search_context_size="high",
-    external_web_access=True
+    search_context_size="high"
 )
 
 
@@ -192,8 +188,8 @@ Monitor quality and budget.
 
 Never claim an external action was completed unless it actually happened.
 
-External submissions, contracts, payments, account changes,
-and irreversible actions require human approval.
+External submissions, contracts, payments,
+account changes and irreversible actions require human approval.
 """
 )
 
@@ -362,7 +358,7 @@ Never present estimates as facts.
 
 
 # =========================
-# REQUEST MODELS
+# MODELS
 # =========================
 
 class ChatIn(BaseModel):
@@ -385,7 +381,7 @@ class ApprovalIn(BaseModel):
 
 
 # =========================
-# AGENT RUNNER
+# RUN AGENT
 # =========================
 
 async def run_agent(agent, prompt):
@@ -398,7 +394,7 @@ async def run_agent(agent, prompt):
 
 
 # =========================
-# HOME
+# BASIC ROUTES
 # =========================
 
 @app.get("/", response_class=HTMLResponse)
@@ -417,10 +413,6 @@ def home():
         )
     )
 
-
-# =========================
-# HEALTH CHECK
-# =========================
 
 @app.get("/api/health")
 def health():
@@ -491,7 +483,9 @@ async def research(body: ResearchIn):
             detail="OPENAI_API_KEY is not configured."
         )
 
-    project_id = new_project(body.task)
+    project_id = new_project(
+        body.task
+    )
 
     plan = await run_agent(
         manager,
@@ -557,11 +551,13 @@ async def research(body: ResearchIn):
         if "PASS" not in review1.upper():
 
             if attempt < body.max_retries:
+
                 prompt = (
                     body.task
                     + "\n\nREWORK REQUIRED:\n"
                     + review1
                 )
+
                 continue
 
             break
@@ -585,6 +581,7 @@ async def research(body: ResearchIn):
             break
 
         if attempt < body.max_retries:
+
             prompt = (
                 body.task
                 + "\n\nSECOND QA REWORK REQUIRED:\n"
@@ -699,7 +696,9 @@ def approval(body: ApprovalIn):
             body.project_id,
             body.action,
             "pending",
-            datetime.now(timezone.utc).isoformat()
+            datetime.now(
+                timezone.utc
+            ).isoformat()
         )
     )
 
