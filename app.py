@@ -1,5 +1,4 @@
 import os
-import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -12,6 +11,11 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from agents import Agent, Runner, WebSearchTool
+
+
+# =========================
+# CONFIG
+# =========================
 
 load_dotenv()
 
@@ -148,7 +152,6 @@ def new_project(task, budget=0, revenue=0):
 
 
 def make_agent(name, instructions, tools=None):
-
     kwargs = {
         "name": name,
         "instructions": instructions
@@ -164,11 +167,12 @@ def make_agent(name, instructions, tools=None):
 
 
 # =========================
-# TOOLS
+# WEB SEARCH
 # =========================
 
 web = WebSearchTool(
-    search_context_size="high"
+    search_context_size="high",
+    external_web_access=True
 )
 
 
@@ -188,8 +192,8 @@ Monitor quality and budget.
 
 Never claim an external action was completed unless it actually happened.
 
-External submissions, contracts, payments,
-account changes and irreversible actions require human approval.
+External submissions, contracts, payments, account changes,
+and irreversible actions require human approval.
 """
 )
 
@@ -358,7 +362,7 @@ Never present estimates as facts.
 
 
 # =========================
-# MODELS
+# REQUEST MODELS
 # =========================
 
 class ChatIn(BaseModel):
@@ -381,7 +385,7 @@ class ApprovalIn(BaseModel):
 
 
 # =========================
-# RUN AGENT
+# AGENT RUNNER
 # =========================
 
 async def run_agent(agent, prompt):
@@ -394,7 +398,7 @@ async def run_agent(agent, prompt):
 
 
 # =========================
-# BASIC ROUTES
+# HOME
 # =========================
 
 @app.get("/", response_class=HTMLResponse)
@@ -413,6 +417,10 @@ def home():
         )
     )
 
+
+# =========================
+# HEALTH CHECK
+# =========================
 
 @app.get("/api/health")
 def health():
@@ -483,9 +491,7 @@ async def research(body: ResearchIn):
             detail="OPENAI_API_KEY is not configured."
         )
 
-    project_id = new_project(
-        body.task
-    )
+    project_id = new_project(body.task)
 
     plan = await run_agent(
         manager,
@@ -551,13 +557,11 @@ async def research(body: ResearchIn):
         if "PASS" not in review1.upper():
 
             if attempt < body.max_retries:
-
                 prompt = (
                     body.task
                     + "\n\nREWORK REQUIRED:\n"
                     + review1
                 )
-
                 continue
 
             break
@@ -581,7 +585,6 @@ async def research(body: ResearchIn):
             break
 
         if attempt < body.max_retries:
-
             prompt = (
                 body.task
                 + "\n\nSECOND QA REWORK REQUIRED:\n"
@@ -695,4 +698,71 @@ def approval(body: ApprovalIn):
             approval_id,
             body.project_id,
             body.action,
-           
+            "pending",
+            datetime.now(timezone.utc).isoformat()
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "approval_id": approval_id,
+        "status": "pending",
+        "message": (
+            "Human approval required "
+            "before external action."
+        )
+    }
+
+
+# =========================
+# PROJECTS
+# =========================
+
+@app.get("/api/projects")
+def projects():
+
+    connection = db()
+
+    rows = [
+        dict(row)
+        for row in connection.execute(
+            """
+            SELECT *
+            FROM projects
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+    ]
+
+    connection.close()
+
+    return rows
+
+
+# =========================
+# EVENTS
+# =========================
+
+@app.get("/api/events/{project_id}")
+def events(project_id: str):
+
+    connection = db()
+
+    rows = [
+        dict(row)
+        for row in connection.execute(
+            """
+            SELECT *
+            FROM events
+            WHERE project_id=?
+            ORDER BY id
+            """,
+            (project_id,)
+        ).fetchall()
+    ]
+
+    connection.close()
+
+    return rows
